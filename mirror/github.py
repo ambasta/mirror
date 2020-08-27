@@ -1,4 +1,3 @@
-from github import Github
 import aiohttp
 import asyncio
 
@@ -12,7 +11,7 @@ class Client:
         self.team = team
         self.repos = []
 
-    async def setup(self, client, api_url=None):
+    async def setup(self, api_url=None):
 
         if api_url is None:
             api_url = f"{self.BASE_URI}/user/repos"
@@ -21,21 +20,25 @@ class Client:
                 api_url = f"{self.BASE_URI}/orgs/{self.organization}/repos"
 
         headers = {"Authorization": f"token {self.token}"}
+        data = []
+        link = {}
 
-        async with client.get(api_url, headers=headers) as response:
-            assert response.status == 200
+        async with aiohttp.ClientSession() as session:
 
-            data = await response.json()
+            async with session.get(api_url, headers=headers) as response:
+                assert response.status == 200
 
-            for repo in data:
-                self.repos.append(repo["name"])
-            link = response.links
-            api_url = link.get("next", {}).get("url", None)
+                data = await response.json()
+                link = response.links
 
-            if api_url is not None:
-                await self.setup(client, api_url)
+        for repo in data:
+            self.repos.append(repo["name"])
+        api_url = link.get("next", {}).get("url", None)
 
-    async def create_repo(self, client, repo):
+        if api_url is not None:
+            await self.setup(api_url)
+
+    async def create_repo(self, repo):
 
         if repo["name"] in self.repos:
             return
@@ -45,27 +48,28 @@ class Client:
         if self.organization:
             api_url = f"{self.BASE_URI}/orgs/{self.organization}/repos"
 
-        async with client.post(
-            api_url, headers={"Authorization": f"token {self.token}"}, json=kwargs
-        ) as response:
-            assert response.status == 201
-            return await response.json()
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                api_url, headers={"Authorization": f"token {self.token}"}, json=kwargs
+            ) as response:
+                assert response.status == 201
+                return await response.json()
 
-    async def import_repo(self, client, queue, username, password):
-        print('Setting up GH')
-        await self.setup(client)
+    async def import_repo(self, queue, username, password):
+        print("GH: Setting up GH")
+        await self.setup()
 
         while True:
-            print('Awaiting repo information')
+            print("GH: Awaiting repo information")
             repo = await queue.get()
 
             if repo is None:
                 break
-            print('Possibly creating repo')
-            created = await self.create_repo(client, repo)
+            print("GH: Possibly creating repo")
+            created = await self.create_repo(repo)
 
             if created:
-                print(f"Migrating {created['full_name']}")
+                print(f"GH: Migrating {created['full_name']}")
                 import_url = f"{self.BASE_URI}/repos/{created['full_name']}/import"
                 params = {
                     "vcs": "git",
@@ -74,9 +78,10 @@ class Client:
                     "vcs_password": password,
                 }
 
-                async with client.put(
-                    import_url,
-                    json=params,
-                    headers={"Authorization": f"token {self.token}"},
-                ) as response:
-                    assert response.status == 201
+                async with aiohttp.ClientSession() as session:
+                    async with session.put(
+                        import_url,
+                        json=params,
+                        headers={"Authorization": f"token {self.token}"},
+                    ) as response:
+                        assert response.status == 201

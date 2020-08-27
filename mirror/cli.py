@@ -44,4 +44,4 @@ async def migrate(
         bb_org=bitbucket_organization,
         repos=repos_to_migrate,
     )
-    await migrant.migrate()
+    return await migrant.migrate()

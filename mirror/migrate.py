@@ -28,10 +28,9 @@ class Migrant:
 
     async def migrate(self):
         queue = asyncio.Queue(loop=self.loop)
-        async with aiohttp.ClientSession() as client:
-            await asyncio.wait(
-                [
-                    self.bitbucket.get_repositories(client, queue),
-                    self.github.import_repo(client, queue, self.bb_user, self.bb_pass),
-                ]
-            )
+        await asyncio.wait(
+            [
+                self.bitbucket.get_repositories(queue),
+                self.github.import_repo(queue, self.bb_user, self.bb_pass),
+            ]
+        )

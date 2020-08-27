@@ -11,27 +11,33 @@ class Client:
         self.organization = organization
         self.repos = []
 
-    async def get_repositories(self, client, queue, api_url=None):
+    async def get_repositories(self, queue, api_url=None):
 
         if api_url is None:
             api_url = f"{self.BASE_URI}repositories"
 
             if self.organization:
                 api_url = f"{api_url}/{self.organization}"
-        print('Fetching Page')
+        print('BB: Fetching Page')
+        data = []
 
-        async with client.get(
-            api_url, auth=aiohttp.BasicAuth(self.username, password=self.password)
-        ) as response:
-            assert response.status == 200
-            data = await response.json()
+        async with aiohttp.ClientSession() as session:
 
-            for repo in data.get("values", []):
-                print('Pushing repo to queue')
-                await queue.put(repo)
-            api_url = data.get("next", None)
+            async with session.get(
+                api_url, auth=aiohttp.BasicAuth(self.username, password=self.password)
+            ) as response:
+                assert response.status == 200
+                print('BB: Got page, parsing data')
+                data = await response.json()
+                print('BB: Got data, processing repos')
 
-            if api_url is not None:
-                await self.get_repositories(queue, client, api_url)
-            else:
-                await queue.put(None)
+        for repo in data.get("values", []):
+            print('BB: Pushing repo to queue')
+            await queue.put(repo)
+        api_url = data.get("next", None)
+
+        if api_url is not None:
+            print('BB: Going for next page')
+            await self.get_repositories(queue, api_url)
+        else:
+            await queue.put(None)
