@@ -1,5 +1,8 @@
 import aiohttp
 import asyncio
+import logging
+
+LOGGER = logging.getLogger(__name__)
 
 
 class Client:
@@ -22,6 +25,7 @@ class Client:
         headers = {"Authorization": f"token {self.token}"}
         data = []
         link = {}
+        LOGGER.debug("Fetching page")
 
         async with aiohttp.ClientSession() as session:
 
@@ -41,12 +45,14 @@ class Client:
     async def create_repo(self, repo):
 
         if repo["name"] in self.repos:
+            LOGGER.info(f"Skipping duplicate repo {repo['name']}")
             return
         kwargs = {"name": repo["name"], "private": repo.get("is_private", True)}
         api_url = f"{self.BASE_URI}/user/repos"
 
         if self.organization:
             api_url = f"{self.BASE_URI}/orgs/{self.organization}/repos"
+        LOGGER.debug(f"Creating repo {repo['name']}")
 
         async with aiohttp.ClientSession() as session:
             async with session.post(
@@ -56,20 +62,21 @@ class Client:
                 return await response.json()
 
     async def import_repo(self, queue, username, password):
-        print("GH: Setting up GH")
+        LOGGER.info("Fetching existing repos")
         await self.setup()
 
         while True:
-            print("GH: Awaiting repo information")
+            LOGGER.debug("Setup complete. Awaiting repos to migrate")
             repo = await queue.get()
 
             if repo is None:
+                LOGGER.info("Migration complete")
                 break
-            print("GH: Possibly creating repo")
+            LOGGER.info(f"Migrating repo {repo['name']}")
             created = await self.create_repo(repo)
+            LOGGER.debug(f"Repo {repo['name']} barebones created")
 
             if created:
-                print(f"GH: Migrating {created['full_name']}")
                 import_url = f"{self.BASE_URI}/repos/{created['full_name']}/import"
                 params = {
                     "vcs": "git",
@@ -77,6 +84,7 @@ class Client:
                     "vcs_username": username,
                     "vcs_password": password,
                 }
+                LOGGER.debug(f"Migrating to {created['full_name']}")
 
                 async with aiohttp.ClientSession() as session:
                     async with session.put(
@@ -85,4 +93,5 @@ class Client:
                         headers={"Authorization": f"token {self.token}"},
                     ) as response:
                         assert response.status == 201
+                        LOGGER.debug(f"Migration task created {created['full_name']}")
             await asyncio.sleep(2)

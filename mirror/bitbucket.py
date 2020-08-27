@@ -1,5 +1,8 @@
 import aiohttp
 import asyncio
+import logging
+
+LOGGER = logging.getLogger(__name__)
 
 
 class Client:
@@ -18,8 +21,8 @@ class Client:
 
             if self.organization:
                 api_url = f"{api_url}/{self.organization}"
-        print('BB: Fetching Page')
         data = []
+        LOGGER.debug("Fetching page")
 
         async with aiohttp.ClientSession() as session:
 
@@ -27,17 +30,14 @@ class Client:
                 api_url, auth=aiohttp.BasicAuth(self.username, password=self.password)
             ) as response:
                 assert response.status == 200
-                print('BB: Got page, parsing data')
                 data = await response.json()
-                print('BB: Got data, processing repos')
 
         for repo in data.get("values", []):
-            print('BB: Pushing repo to queue')
+            LOGGER.info(f"Pushing repo {repo['name']} to queue")
             await queue.put(repo)
         api_url = data.get("next", None)
 
         if api_url is not None:
-            print('BB: Going for next page')
             await self.get_repositories(queue, api_url)
         else:
             await queue.put(None)

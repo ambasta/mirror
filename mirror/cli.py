@@ -1,11 +1,17 @@
 import click
+import logging
 from .migrate import Migrant
 from .wrapper import coroutine
+
+LOGGER = logging.getLogger(__name__)
+LOGGER.setLevel(logging.INFO)
+
 
 @click.command()
 @click.option("--github-token", help="Your Github Token", required=True)
 @click.option(
-    "--github-organization", help="The organization to import to instead of the user",
+    "--github-organization",
+    help="The organization to import to instead of the user",
 )
 @click.option("--github-team", help="The organization team to give the repository to")
 @click.option("--bitbucket-username", help="Your Bitbucket Username", required=True)
@@ -34,6 +40,8 @@ async def migrate(
     repos_to_migrate,
     verbose,
 ):
+    if verbose:
+        LOGGER.setLevel(logging.DEBUG)
     migrant = Migrant(
         loop,
         github_token,
