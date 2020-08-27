@@ -85,3 +85,4 @@ class Client:
                         headers={"Authorization": f"token {self.token}"},
                     ) as response:
                         assert response.status == 201
+            await asyncio.sleep(2)
