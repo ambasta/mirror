@@ -55,10 +55,15 @@ class Client:
         LOGGER.debug(f"Creating repo {repo['name']}")
 
         async with aiohttp.ClientSession() as session:
+
             async with session.post(
                 api_url, headers={"Authorization": f"token {self.token}"}, json=kwargs
             ) as response:
-                assert response.status == 201
+
+                if response.status != 201:
+                    LOGGER.error(
+                        f"Failed to create repo {repo['name']}. Response status {response.status} Data: {response.text}"
+                    )
                 return await response.json()
 
     async def import_repo(self, queue, username, password):

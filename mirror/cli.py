@@ -1,10 +1,25 @@
 import click
 import logging
+import sys
 from .migrate import Migrant
 from .wrapper import coroutine
 
-LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(logging.INFO)
+
+def setup_logger(verbosity):
+    log_level = {
+        0: logging.WARNING,
+        1: logging.INFO,
+        2: logging.DEBUG,
+    }.get(verbosity, logging.INFO)
+
+    logger = logging.getLogger(__package__)
+    logger.setLevel(log_level)
+
+    handler = logging.StreamHandler()
+    handler.setLevel(log_level)
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
 
 
 @click.command()
@@ -40,8 +55,7 @@ async def migrate(
     repos_to_migrate,
     verbose,
 ):
-    if verbose:
-        LOGGER.setLevel(logging.DEBUG)
+    setup_logger(verbose)
     migrant = Migrant(
         loop,
         github_token,
