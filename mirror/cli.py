@@ -1,6 +1,6 @@
 import click
 from .migrate import Migrant
-
+from .wrapper import coroutine
 
 @click.command()
 @click.option("--github-token", help="Your Github Token", required=True)
@@ -22,7 +22,9 @@ from .migrate import Migrant
     """,
 )
 @click.option("-v", "--verbose", count=True)
-def migrate(
+@coroutine
+async def migrate(
+    loop,
     github_token,
     github_organization,
     github_team,
@@ -33,6 +35,7 @@ def migrate(
     verbose,
 ):
     migrant = Migrant(
+        loop,
         github_token,
         bitbucket_username,
         bitbucket_password,
@@ -41,4 +44,4 @@ def migrate(
         bb_org=bitbucket_organization,
         repos=repos_to_migrate,
     )
-    migrant.migrate()
+    await migrant.migrate()

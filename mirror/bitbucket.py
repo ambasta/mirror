@@ -1,4 +1,5 @@
-import requests
+import aiohttp
+import asyncio
 
 
 class Client:
@@ -10,18 +11,27 @@ class Client:
         self.organization = organization
         self.repos = []
 
-    def get_repositories(self, api_url=None):
+    async def get_repositories(self, client, queue, api_url=None):
 
         if api_url is None:
             api_url = f"{self.BASE_URI}repositories"
 
             if self.organization:
                 api_url = f"{api_url}/{self.organization}"
+        print('Fetching Page')
 
-        request = requests.get(api_url, auth=(self.username, self.password))
-        response = request.json()
-        self.repos += response.get("values", [])
-        api_url = response.get("next", None)
+        async with client.get(
+            api_url, auth=aiohttp.BasicAuth(self.username, password=self.password)
+        ) as response:
+            assert response.status == 200
+            data = await response.json()
 
-        if api_url is not None:
-            self.get_repositories(api_url)
+            for repo in data.get("values", []):
+                print('Pushing repo to queue')
+                await queue.put(repo)
+            api_url = data.get("next", None)
+
+            if api_url is not None:
+                await self.get_repositories(queue, client, api_url)
+            else:
+                await queue.put(None)

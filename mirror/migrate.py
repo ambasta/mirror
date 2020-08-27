@@ -1,3 +1,6 @@
+import aiohttp
+import asyncio
+import random
 from .bitbucket import Client as BitbucketClient
 from .github import Client as GithubClient
 
@@ -5,6 +8,7 @@ from .github import Client as GithubClient
 class Migrant:
     def __init__(
         self,
+        loop,
         gh_token,
         bb_user,
         bb_pass,
@@ -13,6 +17,7 @@ class Migrant:
         bb_org=None,
         repos=None,
     ):
+        self.loop = loop
         self.bb_user = bb_user
         self.bb_pass = bb_pass
         self.github = GithubClient(gh_token, organization=gh_org, team=gh_team)
@@ -21,16 +26,12 @@ class Migrant:
         )
         self.repos = repos
 
-    def migrate(self):
-        print("Fetching repos")
-        self.bitbucket.get_repositories()
-        print(f"Migrating {len(self.bitbucket.repos)} repos")
-
-        for repo in self.bitbucket.repos:
-            print(f"Importing {repo['name']}")
-            repo["url"] = repo["links"]["clone"][0]["href"]
-
-            if not self.repos or repo["name"] in self.repos:
-                self.github.import_repo(repo, self.bb_user, self.bb_pass)
-            else:
-                print(f"Skipping {repo['name']}")
+    async def migrate(self):
+        queue = asyncio.Queue(loop=self.loop)
+        async with aiohttp.ClientSession() as client:
+            await asyncio.wait(
+                [
+                    self.bitbucket.get_repositories(client, queue),
+                    self.github.import_repo(client, queue, self.bb_user, self.bb_pass),
+                ]
+            )
