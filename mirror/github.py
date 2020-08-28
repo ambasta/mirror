@@ -56,7 +56,7 @@ class Client:
 
         async with aiohttp.ClientSession() as session:
 
-            async with session.post(
+            async with session.put(
                 api_url, headers={"Authorization": f"token {self.token}"}, json=kwargs
             ) as response:
 
