@@ -101,4 +101,3 @@ class Client:
                     ) as response:
                         assert response.status == 201
                         LOGGER.info(f"Import created {created['full_name']}")
-                        await asyncio.sleep(2)
