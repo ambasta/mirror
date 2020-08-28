@@ -1,6 +1,4 @@
-import aiohttp
 import asyncio
-import random
 from .bitbucket import Client as BitbucketClient
 from .github import Client as GithubClient
 

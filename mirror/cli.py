@@ -1,6 +1,5 @@
 import click
 import logging
-import sys
 from .migrate import Migrant
 from .wrapper import coroutine
 
