@@ -27,13 +27,15 @@ class Client:
         async with aiohttp.ClientSession() as session:
 
             async with session.get(
-                api_url, auth=aiohttp.BasicAuth(self.username, password=self.password)
+                api_url,
+                auth=aiohttp.BasicAuth(self.username, password=self.password),
+                params={"pagelen": 100},
             ) as response:
                 assert response.status == 200
                 data = await response.json()
 
         for repo in data.get("values", []):
-            LOGGER.info(f"Pushing repo {repo['name']} to queue")
+            LOGGER.debug(f"Pushing repo {repo['name']} to queue")
             await queue.put(repo)
         api_url = data.get("next", None)
 
